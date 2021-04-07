@@ -23,7 +23,7 @@ class YahooScraper(scrapy.Spider):
     # Name of this spider
     name = "yahoo"
     allowed_domains = ["yahoo.com"]
-    start_urls = ["https://answers.yahoo.com/dir/index/discover?sid=396545663"]
+    start_urls = ["https://answers.yahoo.com/dir/index/discover"]
     BASE_URL = 'https://answers.yahoo.com/question'
 
 
@@ -71,193 +71,192 @@ class YahooScraper(scrapy.Spider):
             print (str(self.uid) + "Warning: this Url is not more available...")
             url_category = "Error"
 
-        # If the question is related to programming and design
-        # start item creation process
-        if "Programming" and "Design" in url_category:
-            # increment id
-            # copy id and use uid_copy in order to preserve from concurrent request
-            self.uid = self.uid + 1
-            uid_copy = self.uid
+        
+        # increment id
+        # copy id and use uid_copy in order to preserve from concurrent request
+        self.uid = self.uid + 1
+        uid_copy = self.uid
 
-            # Print current uid any 100 times
-            if self.uid % 100 == 0:
-                print (str(self.uid))
-            # Initialize scrapy item
-            item = YahooItem()
-            # Read in the date field associated to URL if info data are present
-            for istance in self.url_to_scrape:
-                if response.url == istance.url:
-                    if istance.date == "not available":
-                        item['date_time'] = "not available"
-                        break
-                    else:
-                        data_format = p.parseDT(str(
-                            str(istance.date).replace("\xc2\xb7", "").strip()))
-                        item['date_time'] = data_format[0].strftime(f)
-                        break
-            item['type'] = "question"
-            item['uid'] = uid_copy
-            item['url'] = response.url
-            item['tags'] = "N/A"
-            item['views'] = 0
-            item['upvotes'] = 0
-            text_to_gain = hxs.xpath('//h1').extract()
-            # Take title of the question
-            item['title'] = (
-            html2text.html2text(text_to_gain[0]).encode("utf8").strip())
-            # Take text from the question
-            full_text_answer = hxs.xpath(
-                '//span[contains(@class,"ya-q-full-text Ol-n")]').extract()
-            if full_text_answer:
-                item['text'] = html2text.html2text(full_text_answer[0]).encode(
+        # Print current uid any 100 times
+        if self.uid % 100 == 0:
+            print (str(self.uid))
+        # Initialize scrapy item
+        item = YahooItem()
+        # Read in the date field associated to URL if info data are present
+        for istance in self.url_to_scrape:
+            if response.url == istance.url:
+                if istance.date == "not available":
+                    item['date_time'] = "not available"
+                    break
+                else:
+                    data_format = p.parseDT(str(
+                        str(istance.date).replace("\xc2\xb7", "").strip()))
+                    item['date_time'] = data_format[0].strftime(f)
+                    break
+        item['type'] = "question"
+        item['uid'] = uid_copy
+        item['url'] = response.url
+        item['tags'] = "N/A"
+        item['views'] = 0
+        item['upvotes'] = 0
+        text_to_gain = hxs.xpath('//h1').extract()
+        # Take title of the question
+        item['title'] = (
+        html2text.html2text(text_to_gain[0]).encode("utf8").strip())
+        # Take text from the question
+        full_text_answer = hxs.xpath(
+            '//span[contains(@class,"ya-q-full-text Ol-n")]').extract()
+        if full_text_answer:
+            item['text'] = html2text.html2text(full_text_answer[0]).encode(
+                'utf-8', 'ignore')
+        else:
+            text_to_gain = hxs.xpath(
+                '//span[contains(@class,"ya-q-text")]').extract()
+            if text_to_gain:
+                item['text'] = html2text.html2text(text_to_gain[0]).encode(
                     'utf-8', 'ignore')
-            else:
-                text_to_gain = hxs.xpath(
-                    '//span[contains(@class,"ya-q-text")]').extract()
-                if text_to_gain:
-                    item['text'] = html2text.html2text(text_to_gain[0]).encode(
-                        'utf-8', 'ignore')
-            # Take username of the questioner
-            text_to_gain = hxs.xpath(
-                '//div[contains(@id,"yq-question-detail-profile-img")]'+
-                '/a/img/@alt').extract()
-            if text_to_gain:
-                try:
-                    h = html2text.HTML2Text()
-                    h.ignore_links = True
-                    author_string = h.handle(text_to_gain[0])
-                    item['author'] = author_string.encode('utf-8',
-                                                          'ignore').strip()
-                # Handle HTMLtoText except
-                except:
-                    item['author'] = "anonymous"
-            else:
+        # Take username of the questioner
+        text_to_gain = hxs.xpath(
+            '//div[contains(@id,"yq-question-detail-profile-img")]'+
+            '/a/img/@alt').extract()
+        if text_to_gain:
+            try:
+                h = html2text.HTML2Text()
+                h.ignore_links = True
+                author_string = h.handle(text_to_gain[0])
+                item['author'] = author_string.encode('utf-8',
+                                                      'ignore').strip()
+            # Handle HTMLtoText except
+            except:
                 item['author'] = "anonymous"
-            text_to_gain = hxs.xpath(
-                '(//div[contains(@class,"Mend-10 Fz-13 Fw-n D-ib")])'+
-                '[2]/span[2]').extract()
-            # Read number of answers
-            if text_to_gain:
-                if " answers" in (
+        else:
+            item['author'] = "anonymous"
+        text_to_gain = hxs.xpath(
+            '(//div[contains(@class,"Mend-10 Fz-13 Fw-n D-ib")])'+
+            '[2]/span[2]').extract()
+        # Read number of answers
+        if text_to_gain:
+            if " answers" in (
+            str(html2text.html2text(text_to_gain[0])).strip()):
+                item['answers'] = int(
+                    str(html2text.html2text(text_to_gain[0])).replace(
+                        " answers", "").strip())
+            else:
+                if " answer" in (
                 str(html2text.html2text(text_to_gain[0])).strip()):
                     item['answers'] = int(
                         str(html2text.html2text(text_to_gain[0])).replace(
-                            " answers", "").strip())
-                else:
-                    if " answer" in (
-                    str(html2text.html2text(text_to_gain[0])).strip()):
-                        item['answers'] = int(
-                            str(html2text.html2text(text_to_gain[0])).replace(
-                                " answer", "").strip())
-            else:
-                item['answers'] = 0
-            # Check if question is closed (resolve with a best answer)
-            text_to_gain = hxs.xpath(
-                '//span[contains(@class,"ya-ba-title Fw-b")]/text()').extract()
-            if text_to_gain:
-                item['resolve'] = "True"
-            else:
-                item['resolve'] = "False"
+                            " answer", "").strip())
+        else:
+            item['answers'] = 0
+        # Check if question is closed (resolve with a best answer)
+        text_to_gain = hxs.xpath(
+            '//span[contains(@class,"ya-ba-title Fw-b")]/text()').extract()
+        if text_to_gain:
+            item['resolve'] = "True"
+        else:
+            item['resolve'] = "False"
 
-            # yield item for the question istance
+        # yield item for the question istance
+        yield item
+
+        # Taking the best answer if present
+
+        if hxs.xpath('//div[contains(@id,"ya-best-answer")]'):
+            ans_uid = 1
+            item = YahooItem()
+            ans_data = hxs.xpath(
+                '(//div[contains(@class,"Pt-15")]/'+
+                'span[contains(@class, "Clr-88")])[1]').extract()
+            data_string = html2text.html2text(ans_data[0]).strip()
+            data_format = p.parseDT(str(
+                data_string.encode("utf8").replace("\xc2\xb7",
+                                                   "").strip()))
+            item['date_time'] = data_format[0].strftime(f)
+            item['uid'] = str(str(uid_copy) + ("." + str(ans_uid)))
+            item['type'] = "answer"
+            item['resolve'] = "solution"
+            item['tags'] = "N/A"
+            item['title'] = ""
+            item['answers'] = 0
+            item['views'] = 0
+            best_text = hxs.xpath(
+                '(//span[contains(@class,"ya-q-full-text")])[1]').extract()
+            item['text'] = html2text.html2text(best_text[0]).encode(
+                'utf-8', 'ignore')
+            text_to_gain = hxs.xpath(
+                '(//a[contains(@class,"uname Clr-b")])[1]').extract()
+            if text_to_gain:
+                h = html2text.HTML2Text()
+                h.ignore_links = True
+                author_string = h.handle(text_to_gain[0])
+                item['author'] = str(
+                    author_string.encode('utf-8', 'ignore').strip())
+            else:
+                item['author'] = "anonymous"
+            upvote_text = hxs.xpath(
+                '(//div[contains(@class,"D-ib Mstart-23 count")])[1]/text()').extract()
+            item['upvotes'] = int(
+                str(html2text.html2text(upvote_text[0])).strip())
+            item['url'] = response.url
+            ans_uid = ans_uid + 1
             yield item
 
-            # Taking the best answer if present
+        else:
+            ans_uid = 1
 
-            if hxs.xpath('//div[contains(@id,"ya-best-answer")]'):
-                ans_uid = 1
-                item = YahooItem()
-                ans_data = hxs.xpath(
-                    '(//div[contains(@class,"Pt-15")]/'+
-                    'span[contains(@class, "Clr-88")])[1]').extract()
-                data_string = html2text.html2text(ans_data[0]).strip()
-                data_format = p.parseDT(str(
-                    data_string.encode("utf8").replace("\xc2\xb7",
-                                                       "").strip()))
-                item['date_time'] = data_format[0].strftime(f)
-                item['uid'] = str(str(uid_copy) + ("." + str(ans_uid)))
-                item['type'] = "answer"
-                item['resolve'] = "solution"
-                item['tags'] = "N/A"
-                item['title'] = ""
-                item['answers'] = 0
-                item['views'] = 0
-                best_text = hxs.xpath(
-                    '(//span[contains(@class,"ya-q-full-text")])[1]').extract()
-                item['text'] = html2text.html2text(best_text[0]).encode(
-                    'utf-8', 'ignore')
-                text_to_gain = hxs.xpath(
-                    '(//a[contains(@class,"uname Clr-b")])[1]').extract()
-                if text_to_gain:
-                    h = html2text.HTML2Text()
-                    h.ignore_links = True
-                    author_string = h.handle(text_to_gain[0])
-                    item['author'] = str(
-                        author_string.encode('utf-8', 'ignore').strip())
-                else:
-                    item['author'] = "anonymous"
-                upvote_text = hxs.xpath(
-                    '(//div[contains(@class,"D-ib Mstart-23 count")])[1]/text()').extract()
-                item['upvotes'] = int(
-                    str(html2text.html2text(upvote_text[0])).strip())
-                item['url'] = response.url
-                ans_uid = ans_uid + 1
-                yield item
 
+        # Taking all the other answers
+        all_answer = hxs.xpath('//ul[contains(@id,"ya-qn-answers")]/li')
+        for single_answer in all_answer:
+            item = YahooItem()
+            # In this case data is always present
+            ans_data = single_answer.xpath(
+                './/div[contains(@class,"Pt-15")]/span[contains(@class, "Clr-88")]').extract()
+            data_string = html2text.html2text(ans_data[0])
+            data_format = p.parseDT(str(
+                data_string.encode("utf8").replace("\xc2\xb7",
+                                                   "").strip()))
+            item['date_time'] = data_format[0].strftime(f)
+            item['uid'] = str(str(uid_copy) + ("." + str(ans_uid)))
+            item['tags'] = "N/A"
+            item['title'] = ""
+            item['answers'] = 0
+            item['views'] = 0
+            item['type'] = "answer"
+            item['resolve'] = ""
+            text_to_gain = single_answer.xpath(
+                './/a[contains(@class,"uname Clr-b")]').extract()
+            if text_to_gain:
+                h = html2text.HTML2Text()
+                h.ignore_links = True
+                author_string = h.handle(text_to_gain[0])
+                item['author'] = str(
+                    author_string.encode('utf-8', 'ignore'))
             else:
-                ans_uid = 1
+                item['author'] = "anonymous"
+            # Take url of the question becouse answer don't have URL ref
+            item['url'] = response.url
+            # Check if is present long text version of the answer
+            text_to_gain = single_answer.xpath(
+                './/span[contains(@class,"ya-q-full-text")][@itemprop="text"]').extract()
+            if text_to_gain:
+                item['text'] = html2text.html2text(text_to_gain[0]).encode(
+                    'utf-8', 'ignore')
+            else:
+                item['text'] = ""
 
+            text_to_gain = single_answer.xpath(
+                './/div[contains(@class,"D-ib Mend-10 Clr-93")]/div[1]/div[1]').extract()
+            if text_to_gain:
+                item['upvotes'] = int(
+                    str(html2text.html2text(text_to_gain[0])).strip())
+            else:
+                item['upvotes'] = 0
 
-            # Taking all the other answers
-            all_answer = hxs.xpath('//ul[contains(@id,"ya-qn-answers")]/li')
-            for single_answer in all_answer:
-                item = YahooItem()
-                # In this case data is always present
-                ans_data = single_answer.xpath(
-                    './/div[contains(@class,"Pt-15")]/span[contains(@class, "Clr-88")]').extract()
-                data_string = html2text.html2text(ans_data[0])
-                data_format = p.parseDT(str(
-                    data_string.encode("utf8").replace("\xc2\xb7",
-                                                       "").strip()))
-                item['date_time'] = data_format[0].strftime(f)
-                item['uid'] = str(str(uid_copy) + ("." + str(ans_uid)))
-                item['tags'] = "N/A"
-                item['title'] = ""
-                item['answers'] = 0
-                item['views'] = 0
-                item['type'] = "answer"
-                item['resolve'] = ""
-                text_to_gain = single_answer.xpath(
-                    './/a[contains(@class,"uname Clr-b")]').extract()
-                if text_to_gain:
-                    h = html2text.HTML2Text()
-                    h.ignore_links = True
-                    author_string = h.handle(text_to_gain[0])
-                    item['author'] = str(
-                        author_string.encode('utf-8', 'ignore'))
-                else:
-                    item['author'] = "anonymous"
-                # Take url of the question becouse answer don't have URL ref
-                item['url'] = response.url
-                # Check if is present long text version of the answer
-                text_to_gain = single_answer.xpath(
-                    './/span[contains(@class,"ya-q-full-text")][@itemprop="text"]').extract()
-                if text_to_gain:
-                    item['text'] = html2text.html2text(text_to_gain[0]).encode(
-                        'utf-8', 'ignore')
-                else:
-                    item['text'] = ""
-
-                text_to_gain = single_answer.xpath(
-                    './/div[contains(@class,"D-ib Mend-10 Clr-93")]/div[1]/div[1]').extract()
-                if text_to_gain:
-                    item['upvotes'] = int(
-                        str(html2text.html2text(text_to_gain[0])).strip())
-                else:
-                    item['upvotes'] = 0
-
-                ans_uid = ans_uid + 1
-                yield item
+            ans_uid = ans_uid + 1
+            yield item
+            
             # Checking if there are more then 10 answers
             # in this case there are other answers in other page
             try:
@@ -279,9 +278,7 @@ class YahooScraper(scrapy.Spider):
                     yield request
             except NoSuchElementException:
                 pass
-        else:
-            print (str(self.uid) + " question not available or not related")
-            print(str(response.url))
+        
 
     # This method is used when question have more then 10 answer and usesed page number
     # works like the simple parse of a question because page and xpath are still the same

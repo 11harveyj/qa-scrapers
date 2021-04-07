@@ -21,7 +21,7 @@ class MySpider(scrapy.Spider):
     allowed_domains = ["yahoo.com"]
     # First URL for the scrapy request
     # In this case Programming and Design category of Yahoo Answer
-    start_urls = ["https://answers.yahoo.com/dir/index/discover?sid=396545663"]
+    start_urls = ["https://answers.yahoo.com/dir/index/discover"]
     # Domain
     BASE_URL = 'https://answers.yahoo.com/question'
 
@@ -125,16 +125,14 @@ class MySpider(scrapy.Spider):
                         './/h3/a[contains(@class,"Clr-b")]')
                     url_accodare = url.get_attribute('href')
                     try:
-                        # Check if the Question is related to programming & Design
-                        if (post.find_element_by_link_text(
-                                'Programming & Design')):
-                            item = YahoourlsearcherItem()
-                            # Print date and url
-                            # print("User url: " + str(i))
-                            item['url'] = str(url_accodare)
-                            item['date'] = str(match.group(1)).strip()
-                            yield item
-                            i = i + 1
+                        
+                        item = YahoourlsearcherItem()
+                        # Print date and url
+                        # print("User url: " + str(i))
+                        item['url'] = str(url_accodare)
+                        item['date'] = str(match.group(1)).strip()
+                        yield item
+                        i = i + 1
                     except NoSuchElementException:
                         pass
                 print("Link take by this user: " + str(i))
@@ -147,7 +145,7 @@ class MySpider(scrapy.Spider):
 
         # Taking more elements from category main page
         # Start the scrolling of the main category
-        print ("Start scraping process from the Yahoo programming and design homepage")
+        print ("Start scraping process from the Yahoo homepage")
         self.driver.get(response.url)
         self.driver.refresh()
         time.sleep(15)
@@ -266,18 +264,16 @@ class MySpider(scrapy.Spider):
             h = html2text.HTML2Text()
             h.ignore_links = True
             category_text = h.handle(category[0])
-            # Check if the question thread is related to programming and design
-            if "Programming" and "Design" in str(category_text).strip():
-                next_page = hxs.xpath(
-                    '//a[contains(@class,"Clr-b") and text()=" Next "]/@href')\
-                    .extract()
-                composed_string = "https://answers.yahoo.com" + next_page[0]
-                item['url'] = str(response.url)
-                item['date'] = str("not available")
-                print ("*** " + str(category_text).strip() + " - " + item[
-                    'url'] + " ***")
-                yield item
-                yield scrapy.Request(composed_string,
-                                     callback=self.other_question)
+            next_page = hxs.xpath(
+                '//a[contains(@class,"Clr-b") and text()=" Next "]/@href')\
+                .extract()
+            composed_string = "https://answers.yahoo.com" + next_page[0]
+            item['url'] = str(response.url)
+            item['date'] = str("not available")
+            print ("*** " + str(category_text).strip() + " - " + item[
+                'url'] + " ***")
+            yield item
+            yield scrapy.Request(composed_string,
+                                 callback=self.other_question)
         except NoSuchElementException:
             pass
